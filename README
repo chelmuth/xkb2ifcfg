@@ -1,0 +1,62 @@
+  XKB to Genode input_filter configuration
+
+  Christian Helmuth
+
+Introduction
+############
+
+* assumption pc105 like German keyboard
+  - with <LSGT> right of <LFSH> (additional 105th key, code 94)
+  - with <BKSL> left of <RTRN> (code 51)
+
+
+Usage
+=====
+
+xkb2ifcfg <command> <layout> <variant> <locale>
+
+Commands
+
+  generate   generate input_filter config
+  dump       dump raw XKB keymap
+  info       simple per-key information
+
+Example
+
+  xkb2ifcfg generate us ""         en_US.UTF-8
+  xkb2ifcfg info     de nodeadkeys de_DE.UTF-8
+
+
+Open issues
+===========
+
+* map for pseudo mod2: LEFTCTRL RIGHTCTRL
+* export composing-key keysym info - currently warns only
+  needs input_filter adaption to handle composing keys?
+* include generated and tested example layouts
+  * en_us, de_de, ch_de (sg), ch_fr (sf), fr
+
+  xkb2ifcfg generate us ''          en_US.UTF-8
+  xkb2ifcfg generate de nodeadkeys  de_DE.UTF-8
+  xkb2ifcfg generate ch de          de_CH.UTF-8
+  xkb2ifcfg generate ch fr          fr_CH.UTF-8
+  xkb2ifcfg generate fr ''          fr_FR.UTF-8
+  xkb2ifcfg generate us euro        en_US.UTF-8
+  xkb2ifcfg generate gb ''          en_GB.UTF-8
+
+
+Generation of keyboard-layout PDFs (and other examples)
+=======================================================
+
+setxkbmap -print -rules evdev -model pc104 -layout us -variant ""           -option "" | xkbcomp -xkm - - | xkbprint -color -label name - - | ps2pdf - t.pdf
+setxkbmap -print -rules evdev -model pc105 -layout de -variant "nodeadkeys" -option "" | xkbcomp -xkm - - | xkbprint -color -label symbols - - | ps2pdf - t.pdf
+
+setxkbmap -print -model pc104 -option -layout us
+setxkbmap -print -model pc105 -option -layout de -variant nodeadkeys
+setxkbmap -print -model pc105 -option -layout ch -variant de_nodeadkeys
+setxkbmap -print -model pc105 -option -layout ch -variant fr_nodeadkeys
+
+setxkbmap -print -model pc105 -option -layout gb
+setxkbmap -print -model pc104 -option -layout us -variant euro
+setxkbmap -print -model pc104 -option -layout us -variant workman
+

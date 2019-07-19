@@ -1,0 +1,7 @@
+*~
+*.d
+*.orig
+*.swp
+*.rej
+
+xkb2ifcfg
