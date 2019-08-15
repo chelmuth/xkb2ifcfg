@@ -52,7 +52,7 @@ namespace Xkb {
 		xkb_keycode_t  xkb;
 		char const     xkb_name[7];
 		Input::Keycode code;
-//		char const     ascii; /* non-printable */
+		char const     ascii { 0 }; /* predefined non-printable */
 	};
 
 	Mapping printable[] = {
@@ -129,12 +129,12 @@ namespace Xkb {
 	};
 
 	Mapping non_printable[] = {
-		{ 9,   "<ESC>",  Input::KEY_ESC },
-		{ 22,  "<BKSP>", Input::KEY_BACKSPACE },
-		{ 23,  "<TAB>",  Input::KEY_TAB },
-		{ 36,  "<RTRN>", Input::KEY_ENTER },
-		{ 104, "<KPEN>", Input::KEY_KPENTER },
-		{ 119, "<DELE>", Input::KEY_DELETE },
+		{ 9,   "<ESC>",  Input::KEY_ESC,       27 },
+		{ 22,  "<BKSP>", Input::KEY_BACKSPACE, 8 },
+		{ 23,  "<TAB>",  Input::KEY_TAB,       9 },
+		{ 36,  "<RTRN>", Input::KEY_ENTER,     10 }, /* XXX we use newline not carriage return as X11 */
+		{ 104, "<KPEN>", Input::KEY_KPENTER,   10 }, /* XXX we use newline not carriage return as X11 */
+		{ 119, "<DELE>", Input::KEY_DELETE,    127 },
 	};
 
 }

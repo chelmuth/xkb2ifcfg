@@ -418,13 +418,10 @@ void Main::_keycode_xml_non_printable(Xml_generator &xml, xkb_keycode_t keycode)
 	for (Xkb::Mapping &m : Xkb::non_printable) {
 		if (m.xkb != keycode) continue;
 
-		Utf8_for_key utf8(_state, m.code);
-
 		xml.node("key", [&] ()
 		{
-			xml.attribute("name", Input::key_name(m.code));
-			/* FIXME produces ascii 13 for ENTER not 10 */
-			xml.attribute("ascii", (unsigned char)utf8.b()[0]);
+			xml.attribute("name",  Input::key_name(m.code));
+			xml.attribute("ascii", m.ascii);
 		});
 
 		return;
