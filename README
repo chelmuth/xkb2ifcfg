@@ -30,9 +30,19 @@ Example
 Open issues
 ===========
 
+* fix <map mod1="0" mod3="4" mod4="8">
+* use xkb_state_key_get_utf32() to get real unicode codepoint
+  * generate <key name="..." code="0x...."> which is U+....
+  * remove all utf8?
+* enhance input_filter test for layouts
 * map for pseudo mod2: LEFTCTRL RIGHTCTRL
 * export composing-key keysym info - currently warns only
-  needs input_filter adaption to handle composing keys?
+  * without Compose/Multi key we only need support for combinations of
+    dead keys with (printable) character keys
+  * needs input_filter adaption to handle composing keys
+  * use "Unicode combining diacritical marks" U+0300..U+036F in
+    <chargen>
+  * add <compose> node to chargen with object/class
 * include generated and tested example layouts
   * en_us, de_de, ch_de (sg), ch_fr (sf), fr
 
@@ -43,6 +53,10 @@ Open issues
   xkb2ifcfg generate fr ''          fr_FR.UTF-8
   xkb2ifcfg generate us euro        en_US.UTF-8
   xkb2ifcfg generate gb ''          en_GB.UTF-8
+
+* no support for latching modifiers
+
+https://docs.microsoft.com/en-us/globalization/keyboards/kbdsg.html
 
 
 Generation of keyboard-layout PDFs (and other examples)
