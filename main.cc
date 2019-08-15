@@ -336,9 +336,9 @@ struct Main::Map
 			append_comment(xml, "\n\n\t", _string(mod), "");
 			xml.node("map", [&] ()
 			{
-				xml.attribute("mod1", unsigned(mod) & unsigned(Mod::SHIFT));
-				xml.attribute("mod3", unsigned(mod) & unsigned(Mod::ALTGR));
-				xml.attribute("mod4", unsigned(mod) & unsigned(Mod::CAPSLOCK));
+				xml.attribute("mod1", (bool)(unsigned(mod) & unsigned(Mod::SHIFT)));
+				xml.attribute("mod3", (bool)(unsigned(mod) & unsigned(Mod::ALTGR)));
+				xml.attribute("mod4", (bool)(unsigned(mod) & unsigned(Mod::CAPSLOCK)));
 
 				xkb_keymap_key_for_each(main.keymap(), _printable, this);
 				/* FIXME xml.append() as last operation breaks indentation */

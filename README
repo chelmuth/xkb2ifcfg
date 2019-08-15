@@ -30,7 +30,6 @@ Example
 Open issues
 ===========
 
-* fix <map mod1="0" mod3="4" mod4="8">
 * use xkb_state_key_get_utf32() to get real unicode codepoint
   * generate <key name="..." code="0x...."> which is U+....
   * remove all utf8?
