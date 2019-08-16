@@ -8,6 +8,11 @@ Introduction
 * assumption pc105 like German keyboard
   - with <LSGT> right of <LFSH> (additional 105th key, code 94)
   - with <BKSL> left of <RTRN> (code 51)
+* no support for latching modifiers
+  * may become handy with accessibility features
+  * input_filter has "sticky" keys already
+* What Windows does
+  https://docs.microsoft.com/en-us/globalization/keyboards/kbdsg.html
 
 
 Usage
@@ -30,11 +35,8 @@ Example
 Open issues
 ===========
 
-* use xkb_state_key_get_utf32() to get real unicode codepoint
-  * generate <key name="..." code="0x...."> which is U+....
-  * remove all utf8?
-* enhance input_filter test for layouts
-* map for pseudo mod2: LEFTCTRL RIGHTCTRL
+:tool:
+
 * export composing-key keysym info - currently warns only
   * without Compose/Multi key we only need support for combinations of
     dead keys with (printable) character keys
@@ -42,6 +44,50 @@ Open issues
   * use "Unicode combining diacritical marks" U+0300..U+036F in
     <chargen>
   * add <compose> node to chargen with object/class
+* map for pseudo mod2: LEFTCTRL RIGHTCTRL
+  * should work regardless of mod1 (which it already does - so don't
+    break it)
+  * map depends on layout, for example, <LCTL>-<AD01> may be
+    CTRL-Q on QWERTY and QWERTZ layout, but
+    CTRL-A on AZERTY
+  * so use the normally generated sym not the keycode...
+    https://www.x.org/releases/current/doc/kbproto/xkbproto.html#Interpreting_the_Control_Modifier
+
+    1     01    SOH (start of heading)      CTRL - A
+    2     02    STX (start of text)         CTRL - B
+    3     03    ETX (end of text)           CTRL - C
+    4     04    EOT (end of transmission)   CTRL - D
+    5     05    ENQ (enquiry)               CTRL - E
+    6     06    ACK (acknowledge)           CTRL - F
+    7     07    BEL '\a' (bell)             CTRL - G
+    8     08    BS  '\b' (backspace)        CTRL - H
+    9     09    HT  '\t' (horizontal tab)   CTRL - I
+    10    0A    LF  '\n' (new line)         CTRL - J
+    11    0B    VT  '\v' (vertical tab)     CTRL - K
+    12    0C    FF  '\f' (form feed)        CTRL - L
+    13    0D    CR  '\r' (carriage ret)     CTRL - M
+    14    0E    SO  (shift out)             CTRL - N
+    15    0F    SI  (shift in)              CTRL - O
+    16    10    DLE (data link escape)      CTRL - P
+    17    11    DC1 (device control 1)      CTRL - Q
+    18    12    DC2 (device control 2)      CTRL - R
+    19    13    DC3 (device control 3)      CTRL - S
+    20    14    DC4 (device control 4)      CTRL - T
+    21    15    NAK (negative ack.)         CTRL - U
+    22    16    SYN (synchronous idle)      CTRL - V
+    23    17    ETB (end of trans. blk)     CTRL - W
+    24    18    CAN (cancel)                CTRL - X
+    25    19    EM  (end of medium)         CTRL - Y
+    26    1A    SUB (substitute)            CTRL - Z
+    27    1B    ESC (escape)                CTRL - [
+    28    1C    FS  (file separator)        CTRL - \  '\\'
+    29    1D    GS  (group separator)       CTRL - ]
+    30    1E    RS  (record separator)      CTRL - ^
+    31    1F    US  (unit separator)        CTRL - _
+
+:input_filter:
+
+* enhance input_filter test for layouts
 * include generated and tested example layouts
   * en_us, de_de, ch_de (sg), ch_fr (sf), fr
 
@@ -53,9 +99,6 @@ Open issues
   xkb2ifcfg generate us euro        en_US.UTF-8
   xkb2ifcfg generate gb ''          en_GB.UTF-8
 
-* no support for latching modifiers
-
-https://docs.microsoft.com/en-us/globalization/keyboards/kbdsg.html
 
 
 Generation of keyboard-layout PDFs (and other examples)

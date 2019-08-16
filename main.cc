@@ -36,6 +36,7 @@
 #include <util/reconstructible.h>
 
 #include "xkb_mapping.h"
+#include "util.h"
 
 using Genode::Xml_generator;
 using Genode::Constructible;
@@ -104,7 +105,7 @@ struct Utf8_for_key
 	}
 
 	bool valid() const { return _b[0] != 0; }
-	char const *b() const { return _b; }
+	char const *character() const { return _b; }
 
 	void attributes(Xml_generator &xml)
 	{
@@ -112,6 +113,25 @@ struct Utf8_for_key
 			char const bi[] = { 'b', char('0' + i), 0 };
 			xml.attribute(bi, (unsigned char)_b[i]);
 		}
+	}
+};
+
+
+struct Utf32_for_key
+{
+	unsigned _b;
+
+	Utf32_for_key(xkb_state *state, Input::Keycode code)
+	{
+		_b = xkb_state_key_get_utf32(state, Xkb::keycode(code));
+	}
+
+	bool valid() const { return _b != 0; }
+	unsigned value() const { return _b; }
+
+	void attributes(Xml_generator &xml)
+	{
+		xml.attribute("code", Formatted("0x%04x", _b).string());
 	}
 };
 
@@ -442,16 +462,15 @@ void Main::_keycode_xml_printable(Xml_generator &xml, xkb_keycode_t keycode)
 			          buffer, Input::key_name(m.code));
 		}
 
-		Utf8_for_key utf8(_state, m.code);
+		Utf32_for_key utf32(_state, m.code);
 
-		if (utf8.valid()) {
+		if (utf32.valid()) {
 			xml.node("key", [&] ()
 			{
 				xml.attribute("name", Input::key_name(m.code));
-				utf8.attributes(xml);
+				utf32.attributes(xml);
 			});
-			/* FIXME make the comment optional */
-			append_comment(xml, "\t", utf8.b(), "");
+			append_comment(xml, "\t", Utf8_for_key(_state, m.code).character(), "");
 		}
 
 		return;

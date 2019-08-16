@@ -1,7 +1,7 @@
 /*
- * \brief  Genode utility support
+ * \brief  Libxkbcommon-based keyboard-layout generator
  * \author Christian Helmuth <christian.helmuth@genode-labs.com>
- * \date   2019-07-25
+ * \date   2019-08-16
  *
  * Copyright (C) 2019 Genode Labs GmbH
  *
@@ -24,33 +24,38 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-/* Genode includes */
-#include <base/console.h>
+#ifndef _UTIL_H_
+#define _UTIL_H_
 
-#include "util.h"
+/* Linux includes */
+#include <cstdio>
+#include <cstdlib>
 
 
-void Genode::Console::_out_string(char const *str)
+struct Formatted
 {
-	if (!str)
-		_out_string("<NULL>");
-	else
-		while (*str) _out_char(*str++);
-}
+	char *_string;
+
+	Formatted(char const *format, va_list list)
+	{
+		::vasprintf(&_string, format, list);
+	}
+
+	Formatted(char const *format, ...)
+	{
+		va_list list;
+		va_start(list, format);
+		::vasprintf(&_string, format, list);
+		va_end(list);
+	}
+
+	~Formatted()
+	{
+		::free(_string);
+	}
+
+	char const * string() const { return _string; }
+};
 
 
-void Genode::Console::printf(const char *format, ...)
-{
-	va_list list;
-	va_start(list, format);
-	vprintf(format, list);
-	va_end(list);
-}
-
-
-void Genode::Console::vprintf(const char *format, va_list list)
-{
-	Formatted str(format, list);
-
-	_out_string(str.string());
-}
+#endif /* _UTIL_H_ */
