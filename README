@@ -40,11 +40,9 @@ Open issues
 * export composing-key keysym info - currently warns only
   * without Compose/Multi key we only need support for combinations of
     dead keys with (printable) character keys
-  * needs input_filter adaption to handle composing keys
-  * use "Unicode combining diacritical marks" U+0300..U+036F in
-    <chargen>
-  * add <compose> node to chargen with object/class
+  * generate <sequence> nodes (beside <key> nodes)
 * map for pseudo mod2: LEFTCTRL RIGHTCTRL
+  * first try xkb_state_key_get_one_sym() with ctrl pressed...
   * should work regardless of mod1 (which it already does - so don't
     break it)
   * map depends on layout, for example, <LCTL>-<AD01> may be
@@ -86,6 +84,18 @@ Open issues
     31    1F    US  (unit separator)        CTRL - _
 
 :input_filter:
+
+* use "Unicode combining diacritical marks" U+0300..U+036F in
+  <chargen>
+* add <sequence> nodes to chargen with object/class (beside <key>
+  nodes)
+* Cancellation Behavior
+  What should happen when a sequence is cancelled?  For example, consider
+  there are only the above sequences, and the input kesysms are
+  \<dead_acute\> \<b\>.  There are a few approaches:
+
+  Swallow the cancelling keysym; that is, no keysym is produced. This
+  is the approach taken by libX11.
 
 * enhance input_filter test for layouts
 * include generated and tested example layouts

@@ -137,6 +137,44 @@ namespace Xkb {
 		{ 119, "<DELE>", Input::KEY_DELETE,    127 },
 	};
 
+	struct Dead_keysym
+	{
+		xkb_keysym_t xkb;
+		unsigned     utf32;
+	} dead_keysym[] = {
+		{ XKB_KEY_dead_grave,              0x0300 },
+		{ XKB_KEY_dead_acute,              0x0301 },
+		{ XKB_KEY_dead_circumflex,         0x0302 },
+		{ XKB_KEY_dead_tilde,              0x0303 }, /* aliases: dead_perispomeni */
+		{ XKB_KEY_dead_macron,             0x0304 },
+		{ XKB_KEY_dead_breve,              0x0306 },
+		{ XKB_KEY_dead_abovedot,           0x0307 },
+		{ XKB_KEY_dead_diaeresis,          0x0308 },
+		{ XKB_KEY_dead_hook,               0x0309 },
+		{ XKB_KEY_dead_abovering,          0x030A },
+		{ XKB_KEY_dead_doubleacute,        0x030B },
+		{ XKB_KEY_dead_caron,              0x030C },
+		{ XKB_KEY_dead_doublegrave,        0x030F },
+		{ XKB_KEY_dead_invertedbreve,      0x0311 },
+		{ XKB_KEY_dead_abovecomma,         0x0313 }, /* aliases: dead_psili */
+		{ XKB_KEY_dead_abovereversedcomma, 0x0314 }, /* aliases: dead_dasia */
+		{ XKB_KEY_dead_horn,               0x031B },
+		{ XKB_KEY_dead_belowdot,           0x0323 },
+		{ XKB_KEY_dead_belowdiaeresis,     0x0324 },
+		{ XKB_KEY_dead_belowring,          0x0325 },
+		{ XKB_KEY_dead_belowcomma,         0x0326 },
+		{ XKB_KEY_dead_cedilla,            0x0327 },
+		{ XKB_KEY_dead_ogonek,             0x0328 },
+		{ XKB_KEY_dead_belowcircumflex,    0x032d },
+		{ XKB_KEY_dead_belowtilde,         0x0330 },
+		{ XKB_KEY_dead_belowmacron,        0x0331 },
+		{ XKB_KEY_dead_stroke,             0x0338 },
+		{ XKB_KEY_dead_belowbreve,         0x032E },
+		{ XKB_KEY_dead_iota,               0x0345 }, /* aliases: GREEK YPOGEGRAMMENI */
+//		{ XKB_KEY_dead_voiced_sound,       0x03 },
+//		{ XKB_KEY_dead_semivoiced_sound,   0x03 },
+//		{ XKB_KEY_dead_currency,           0x03 },
+	};
 }
 
 #endif /* _XKB_MAPPING_H_ */

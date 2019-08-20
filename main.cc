@@ -95,43 +95,69 @@ class Expanding_xml_buffer
 };
 
 
-struct Utf8_for_key
+static bool keysym_composing(xkb_compose_state *compose_state, xkb_keysym_t sym)
 {
-	char _b[7] { 0, 0, 0, 0, 0, 0, 0 };
+	xkb_compose_state_reset(compose_state);
 
-	Utf8_for_key(xkb_state *state, Input::Keycode code)
+	/* XXX this returns XKB_COMPOSE_FEED_IGNORED or XKB_COMPOSE_FEED_ACCEPTED */
+	xkb_compose_state_feed(compose_state, sym);
+
+	return (XKB_COMPOSE_COMPOSING == xkb_compose_state_get_status(compose_state));
+}
+
+
+struct Key_info
+{
+	enum { COMMENT_CAPACITY = 100 };
+
+	xkb_keysym_t  _keysym    { XKB_KEY_NoSymbol };
+	bool          _composing { false };
+	unsigned      _utf32     { 0 };
+	char         *_comment   { (char *)::calloc(1, COMMENT_CAPACITY) };
+
+	Key_info(xkb_state *state, xkb_compose_state *compose_state, Input::Keycode code)
 	{
-		xkb_state_key_get_utf8(state, Xkb::keycode(code), _b, sizeof(_b));
-	}
+		_keysym = xkb_state_key_get_one_sym(state, Xkb::keycode(code));
+		if (_keysym == XKB_KEY_NoSymbol) return;
 
-	bool valid() const { return _b[0] != 0; }
-	char const *character() const { return _b; }
+		_composing = keysym_composing(compose_state, _keysym);
 
-	void attributes(Xml_generator &xml)
-	{
-		for (unsigned i = 0; _b[i] && i < sizeof(_b); ++i) {
-			char const bi[] = { 'b', char('0' + i), 0 };
-			xml.attribute(bi, (unsigned char)_b[i]);
+		if (!_composing) {
+			_utf32 = xkb_state_key_get_utf32(state, Xkb::keycode(code));
+			xkb_state_key_get_utf8(state, Xkb::keycode(code), _comment, COMMENT_CAPACITY);
+		} else {
+			char keysym_str[32];
+			xkb_keysym_get_name(_keysym, keysym_str, sizeof(keysym_str));
+
+			for (Xkb::Dead_keysym &d : Xkb::dead_keysym) {
+				if (d.xkb != _keysym) continue;
+
+				_utf32 = d.utf32;
+				strncat(_comment, keysym_str, COMMENT_CAPACITY - 1);
+				return;
+			}
+			::fprintf(stderr, "no UTF32 mapping found for composing keysym <%s>\n", keysym_str);
 		}
 	}
-};
 
-
-struct Utf32_for_key
-{
-	unsigned _b;
-
-	Utf32_for_key(xkb_state *state, Input::Keycode code)
+	~Key_info()
 	{
-		_b = xkb_state_key_get_utf32(state, Xkb::keycode(code));
+		::free(_comment);
 	}
 
-	bool valid() const { return _b != 0; }
-	unsigned value() const { return _b; }
+	bool valid()          const { return _utf32  != 0; }
+	xkb_keysym_t keysym() const { return _keysym; }
+	bool composing()      const { return _composing; }
+	unsigned utf32()      const { return _utf32; }
 
 	void attributes(Xml_generator &xml)
 	{
-		xml.attribute("code", Formatted("0x%04x", _b).string());
+		xml.attribute("code", Formatted("0x%04x", _utf32).string());
+	}
+
+	void comment(Xml_generator &xml)
+	{
+		append_comment(xml, "\t", _comment, "");
 	}
 };
 
@@ -238,11 +264,9 @@ class Main
 		char const * _string(enum xkb_compose_status);
 		char const * _string(enum xkb_compose_feed_result);
 
-		bool _keysym_composing(xkb_keysym_t);
-
 		void _keycode_info(xkb_keycode_t);
 		void _keycode_xml_non_printable(Xml_generator &, xkb_keycode_t);
-		void _keycode_xml_printable(Xml_generator &, xkb_keycode_t);
+		xkb_keysym_t _keycode_xml_printable(Xml_generator &, xkb_keycode_t);
 		void _keycode_xml_printable_shift(Xml_generator &, xkb_keycode_t);
 		void _keycode_xml_printable_altgr(Xml_generator &, xkb_keycode_t);
 		void _keycode_xml_printable_capslock(Xml_generator &, xkb_keycode_t);
@@ -391,15 +415,6 @@ char const * Main::_string(enum xkb_compose_feed_result result)
 }
 
 
-bool Main::_keysym_composing(xkb_keysym_t sym)
-{
-	xkb_compose_state_reset(_compose_state);
-	xkb_compose_state_feed(_compose_state, sym);
-
-	return (XKB_COMPOSE_COMPOSING == xkb_compose_state_get_status(_compose_state));
-}
-
-
 void Main::_keycode_info(xkb_keycode_t keycode)
 {
 	for (Xkb::Mapping &m : Xkb::printable) {
@@ -421,7 +436,8 @@ void Main::_keycode_info(xkb_keycode_t keycode)
 			for (unsigned s = 0; s < num_syms; ++s) {
 				char buffer[7] = { 0, };
 				xkb_keysym_to_utf8(syms[s], buffer, sizeof(buffer));
-				::printf(" %x %s", syms[s], _keysym_composing(syms[s]) ? "COMPOSING!" : buffer);
+				::printf(" %x %s", syms[s], keysym_composing(_compose_state, syms[s])
+				                            ? "COMPOSING!" : buffer);
 			}
 		}
 
@@ -449,32 +465,25 @@ void Main::_keycode_xml_non_printable(Xml_generator &xml, xkb_keycode_t keycode)
 }
 
 
-void Main::_keycode_xml_printable(Xml_generator &xml, xkb_keycode_t keycode)
+xkb_keysym_t Main::_keycode_xml_printable(Xml_generator &xml, xkb_keycode_t keycode)
 {
 	for (Xkb::Mapping &m : Xkb::printable) {
 		if (m.xkb != keycode) continue;
 
-		xkb_keysym_t keysym = xkb_state_key_get_one_sym(_state, m.xkb);
-		if (keysym != XKB_KEY_NoSymbol && _keysym_composing(keysym)) {
-			char buffer[256];
-			xkb_keysym_get_name(keysym, buffer, sizeof(buffer));
-			::fprintf(stderr, "unsupported composing keysym <%s> on %s\n",
-			          buffer, Input::key_name(m.code));
-		}
+		Key_info key_info(_state, _compose_state, m.code);
+		if (!key_info.valid()) break;
 
-		Utf32_for_key utf32(_state, m.code);
+		xml.node("key", [&] ()
+		{
+			xml.attribute("name", Input::key_name(m.code));
+			key_info.attributes(xml);
+		});
+		key_info.comment(xml);
 
-		if (utf32.valid()) {
-			xml.node("key", [&] ()
-			{
-				xml.attribute("name", Input::key_name(m.code));
-				utf32.attributes(xml);
-			});
-			append_comment(xml, "\t", Utf8_for_key(_state, m.code).character(), "");
-		}
-
-		return;
+		return key_info.keysym();
 	}
+
+	return XKB_KEY_NoSymbol;
 }
 
 void Main::_keycode_xml_printable_shift(Xml_generator &xml, xkb_keycode_t keycode)
