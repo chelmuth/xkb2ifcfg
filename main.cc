@@ -29,6 +29,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <xkbcommon/xkbcommon-compose.h>
+#include <set>
+#include <vector>
+#include <stdexcept>
 
 /* Genode includes */
 #include <util/xml_generator.h>
@@ -162,6 +165,20 @@ struct Key_info
 };
 
 
+struct Keysym
+{
+	bool         composing { 0 };
+	xkb_keysym_t keysym    { 0 };
+	unsigned     utf32     { 0 };
+};
+
+
+static bool operator < (Keysym const &a, Keysym const &b)
+{
+	return a.keysym < b.keysym;
+}
+
+
 template <Input::Keycode code>
 struct Locked
 {
@@ -247,6 +264,7 @@ class Main
 	private:
 
 		struct Map;
+		struct Sequence;
 
 		Args args;
 
@@ -256,6 +274,8 @@ class Main
 		xkb_state         *_state;
 		xkb_compose_table *_compose_table;
 		xkb_compose_state *_compose_state;
+
+		std::set<Keysym> _keysyms;
 
 		/*
 		 * Numpad keys are remapped in input_filter if numlock=off, so we
@@ -269,7 +289,7 @@ class Main
 
 		void _keycode_info(xkb_keycode_t);
 		void _keycode_xml_non_printable(Xml_generator &, xkb_keycode_t);
-		xkb_keysym_t _keycode_xml_printable(Xml_generator &, xkb_keycode_t);
+		void _keycode_xml_printable(Xml_generator &, xkb_keycode_t);
 		void _keycode_xml_printable_shift(Xml_generator &, xkb_keycode_t);
 		void _keycode_xml_printable_altgr(Xml_generator &, xkb_keycode_t);
 		void _keycode_xml_printable_capslock(Xml_generator &, xkb_keycode_t);
@@ -396,6 +416,89 @@ struct Main::Map
 };
 
 
+struct Main::Sequence
+{
+	struct Guard
+	{
+		std::vector<Keysym> &seq;
+
+		Guard(std::vector<Keysym> &seq, Keysym keysym) : seq(seq) { seq.push_back(keysym); }
+		~Guard() { seq.pop_back(); }
+	};
+
+	Main          &_main;
+	Xml_generator &_xml;
+
+	xkb_compose_state *_state { xkb_compose_state_ref(_main._compose_state) };
+
+	void _generate(std::vector<Keysym> &seq, Keysym keysym)
+	{
+		Guard g(seq, keysym);
+
+		if (seq.size() > 4) {
+			::fprintf(stderr, "dead-key / compose sequence too long (max=4)\n");
+			return;
+		}
+
+		xkb_compose_state_reset(_state);
+		for (Keysym k : seq) xkb_compose_state_feed(_state, k.keysym);
+
+		switch (xkb_compose_state_get_status(_state)) {
+		case XKB_COMPOSE_COMPOSED: {
+				xkb_keysym_t result = xkb_compose_state_get_one_sym(_state);
+				unsigned     utf32  = xkb_keysym_to_utf32(result);
+
+				_xml.node("sequence", [&] ()
+				{
+					try {
+						_xml.attribute("first",  Formatted("0x%04x", seq.at(0).utf32).string());
+						_xml.attribute("second", Formatted("0x%04x", seq.at(1).utf32).string());
+						_xml.attribute("third",  Formatted("0x%04x", seq.at(2).utf32).string());
+						_xml.attribute("fourth", Formatted("0x%04x", seq.at(3).utf32).string());
+					} catch (std::out_of_range) { }
+
+					_xml.attribute("code", Formatted("0x%04x", utf32).string());
+				});
+
+				char comment[32];
+				xkb_keysym_to_utf8(result, comment, sizeof(comment));
+				append_comment(_xml, "\t", comment, "");
+			} break;
+
+		case XKB_COMPOSE_COMPOSING:
+			for (Keysym k : _main._keysyms) {
+				_generate(seq, k);
+			}
+			break;
+
+		case XKB_COMPOSE_CANCELLED:
+		case XKB_COMPOSE_NOTHING:
+			break;
+		}
+	}
+
+	Sequence(Main &main, Xml_generator &xml)
+	:
+		_main(main), _xml(xml)
+	{
+		append_comment(_xml, "\n\n\t", "dead-key / compose sequences", "");
+		for (Keysym k : _main._keysyms) {
+			/* first must be a dead/composing keysym */
+			if (!k.composing) continue;
+
+			std::vector<Keysym> seq;
+
+			_generate(seq, k);
+		}
+
+		/* FIXME xml.append() as last operation breaks indentation */
+		xml.node("dummy", [] () {});
+	}
+
+	~Sequence() { xkb_compose_state_unref(_state); }
+};
+
+
 char const * Main::_string(enum xkb_compose_status status)
 {
     switch (status) {
@@ -468,7 +571,7 @@ void Main::_keycode_xml_non_printable(Xml_generator &xml, xkb_keycode_t keycode)
 }
 
 
-xkb_keysym_t Main::_keycode_xml_printable(Xml_generator &xml, xkb_keycode_t keycode)
+void Main::_keycode_xml_printable(Xml_generator &xml, xkb_keycode_t keycode)
 {
 	for (Xkb::Mapping &m : Xkb::printable) {
 		if (m.xkb != keycode) continue;
@@ -483,11 +586,13 @@ xkb_keysym_t Main::_keycode_xml_printable(Xml_generator &xml, xkb_keycode_t keyc
 		});
 		key_info.comment(xml);
 
-		return key_info.keysym();
-	}
+		Keysym keysym { key_info.composing(), key_info.keysym(), key_info.utf32() };
+		_keysyms.insert(keysym);
 
-	return XKB_KEY_NoSymbol;
+		return;
+	}
 }
+
 
 void Main::_keycode_xml_printable_shift(Xml_generator &xml, xkb_keycode_t keycode)
 {
@@ -560,6 +665,8 @@ int Main::_generate()
 		{ Map map { *this, xml, Map::Mod::SHIFT_CAPSLOCK }; }
 		{ Map map { *this, xml, Map::Mod::ALTGR_CAPSLOCK }; }
 		{ Map map { *this, xml, Map::Mod::SHIFT_ALTGR_CAPSLOCK }; }
+
+		{ Sequence sequence { *this, xml }; }
 	};
 
 	xml_buffer.generate("chargen", generate_xml);

@@ -37,10 +37,6 @@ Open issues
 
 :tool:
 
-* export composing-key keysym info - currently warns only
-  * without Compose/Multi key we only need support for combinations of
-    dead keys with (printable) character keys
-  * generate <sequence> nodes (beside <key> nodes)
 * map for pseudo mod2: LEFTCTRL RIGHTCTRL
   * first try xkb_state_key_get_one_sym() with ctrl pressed...
   * should work regardless of mod1 (which it already does - so don't
@@ -89,6 +85,7 @@ Open issues
   <chargen>
 * add <sequence> nodes to chargen with object/class (beside <key>
   nodes)
+  <sequence first="..." second="..." third="..." fourth="..." code="..."/>
 * Cancellation Behavior
   What should happen when a sequence is cancelled?  For example, consider
   there are only the above sequences, and the input kesysms are
