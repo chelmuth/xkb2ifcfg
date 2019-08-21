@@ -101,8 +101,6 @@ class Expanding_xml_buffer
 static bool keysym_composing(xkb_compose_state *compose_state, xkb_keysym_t sym)
 {
 	xkb_compose_state_reset(compose_state);
-
-	/* XXX this returns XKB_COMPOSE_FEED_IGNORED or XKB_COMPOSE_FEED_ACCEPTED */
 	xkb_compose_state_feed(compose_state, sym);
 
 	return (XKB_COMPOSE_COMPOSING == xkb_compose_state_get_status(compose_state));
@@ -289,6 +287,7 @@ class Main
 
 		void _keycode_info(xkb_keycode_t);
 		void _keycode_xml_non_printable(Xml_generator &, xkb_keycode_t);
+		void _keycode_xml_control(Xml_generator &, xkb_keycode_t);
 		void _keycode_xml_printable(Xml_generator &, xkb_keycode_t);
 		void _keycode_xml_printable_shift(Xml_generator &, xkb_keycode_t);
 		void _keycode_xml_printable_altgr(Xml_generator &, xkb_keycode_t);
@@ -320,10 +319,10 @@ struct Main::Map
 
 	enum class Mod : unsigned {
 		NONE                 = 0,
-		SHIFT                = 1, /* mod1 */
-		                          /* mod2 is CTRL */
-		ALTGR                = 4, /* mod3 */
-		CAPSLOCK             = 8, /* mod4 */
+		SHIFT                = 0b0001, /* mod1 */
+		CONTROL              = 0b0010, /* mod2 */
+		ALTGR                = 0b0100, /* mod3 */
+		CAPSLOCK             = 0b1000, /* mod4 */
 		SHIFT_ALTGR          = SHIFT | ALTGR,
 		SHIFT_CAPSLOCK       = SHIFT | CAPSLOCK,
 		ALTGR_CAPSLOCK       = ALTGR | CAPSLOCK,
@@ -335,6 +334,7 @@ struct Main::Map
 		switch (mod) {
 		case Map::Mod::NONE:                 return "no modifier";
 		case Map::Mod::SHIFT:                return "SHIFT";
+		case Map::Mod::CONTROL:              return "CONTROL";
 		case Map::Mod::ALTGR:                return "ALTGR";
 		case Map::Mod::CAPSLOCK:             return "CAPSLOCK";
 		case Map::Mod::SHIFT_ALTGR:          return "SHIFT-ALTGR";
@@ -350,13 +350,26 @@ struct Main::Map
 		Map &m = *reinterpret_cast<Map *>(data);
 
 		if (m.mod != Map::Mod::NONE) {
-			::printf("%s: mod=%u not supported\n",
-			       __PRETTY_FUNCTION__, unsigned(m.mod));
+			::fprintf(stderr, "%s: mod=%u not supported\n",
+			          __PRETTY_FUNCTION__, unsigned(m.mod));
 			return;
 		}
 
 		m.main._keycode_xml_non_printable(m.xml, keycode);
-	};
+	}
+
+	static void _control(xkb_keymap *, xkb_keycode_t keycode, void *data)
+	{
+		Map &m = *reinterpret_cast<Map *>(data);
+
+		if (m.mod != Map::Mod::CONTROL) {
+			::fprintf(stderr, "%s: mod=%u not supported\n",
+			          __PRETTY_FUNCTION__, unsigned(m.mod));
+			return;
+		}
+
+		m.main._keycode_xml_control(m.xml, keycode);
+	}
 
 	static void _printable(xkb_keymap *, xkb_keycode_t keycode, void *data)
 	{
@@ -367,6 +380,8 @@ struct Main::Map
 			m.main._keycode_xml_printable(m.xml, keycode); break;
 		case Map::Mod::SHIFT:
 			m.main._keycode_xml_printable_shift(m.xml, keycode); break;
+		case Map::Mod::CONTROL:
+			/* not printable */ break;
 		case Map::Mod::ALTGR:
 			m.main._keycode_xml_printable_altgr(m.xml, keycode); break;
 		case Map::Mod::CAPSLOCK:
@@ -380,7 +395,7 @@ struct Main::Map
 		case Map::Mod::SHIFT_ALTGR_CAPSLOCK:
 			m.main._keycode_xml_printable_shift_altgr_capslock(m.xml, keycode); break;
 		}
-	};
+	}
 
 	Map(Main &main, Xml_generator &xml, Mod mod)
 	:
@@ -395,6 +410,22 @@ struct Main::Map
 
 				append_comment(xml, "\n\n\t\t", "non-printable", "");
 				xkb_keymap_key_for_each(main.keymap(), _non_printable, this);
+
+				/* FIXME xml.append() as last operation breaks indentation */
+				xml.node("dummy", [] () {});
+			});
+
+		} else if (mod == Mod::CONTROL) {
+			/* generate control character map */
+			append_comment(xml, "\n\n\t", _string(mod), "");
+			xml.node("map", [&] ()
+			{
+				xml.attribute("mod2", true);
+
+				xkb_keymap_key_for_each(main.keymap(), _control, this);
+
+				/* FIXME xml.append() as last operation breaks indentation */
+				xml.node("dummy", [] () {});
 			});
 
 		} else {
@@ -404,10 +435,12 @@ struct Main::Map
 			xml.node("map", [&] ()
 			{
 				xml.attribute("mod1", (bool)(unsigned(mod) & unsigned(Mod::SHIFT)));
+				xml.attribute("mod2", false);
 				xml.attribute("mod3", (bool)(unsigned(mod) & unsigned(Mod::ALTGR)));
 				xml.attribute("mod4", (bool)(unsigned(mod) & unsigned(Mod::CAPSLOCK)));
 
 				xkb_keymap_key_for_each(main.keymap(), _printable, this);
+
 				/* FIXME xml.append() as last operation breaks indentation */
 				xml.node("dummy", [] () {});
 			});
@@ -571,6 +604,69 @@ void Main::_keycode_xml_non_printable(Xml_generator &xml, xkb_keycode_t keycode)
 }
 
 
+void Main::_keycode_xml_control(Xml_generator &xml, xkb_keycode_t keycode)
+{
+	/* chargen entry for control characters (e.g., CTRL-J) */
+	static char const *desc[] {
+		"SOH (start of heading)    ",
+		"STX (start of text)       ",
+		"ETX (end of text)         ",
+		"EOT (end of transmission) ",
+		"ENQ (enquiry)             ",
+		"ACK (acknowledge)         ",
+		"BEL '\\a' (bell)           ",
+		"BS  '\\b' (backspace)      ",
+		"HT  '\\t' (horizontal tab) ",
+		"LF  '\\n' (new line)       ",
+		"VT  '\\v' (vertical tab)   ",
+		"FF  '\\f' (form feed)      ",
+		"CR  '\\r' (carriage ret)   ",
+		"SO  (shift out)           ",
+		"SI  (shift in)            ",
+		"DLE (data link escape)    ",
+		"DC1 (device control 1)    ",
+		"DC2 (device control 2)    ",
+		"DC3 (device control 3)    ",
+		"DC4 (device control 4)    ",
+		"NAK (negative ack.)       ",
+		"SYN (synchronous idle)    ",
+		"ETB (end of trans. blk)   ",
+		"CAN (cancel)              ",
+		"EM  (end of medium)       ",
+		"SUB (substitute)          ",
+		"ESC (escape)              ",
+		"FS  (file separator)      ",
+		"GS  (group separator)     ",
+		"RS  (record separator)    ",
+		"US  (unit separator)      ",
+	};
+	Pressed<Input::KEY_LEFTCTRL> control(_state);
+	for (Xkb::Mapping &m : Xkb::printable) {
+		if (m.xkb != keycode) continue;
+
+		xkb_keysym_t const keysym = xkb_state_key_get_one_sym(_state, keycode);
+		if (keysym == XKB_KEY_NoSymbol) return;
+
+		unsigned const utf32 = xkb_state_key_get_utf32(_state, m.xkb);
+		if (!utf32 || utf32 > 0x1f) return;
+
+		char keysym_str[32];
+		xkb_keysym_get_name(keysym, keysym_str, sizeof(keysym_str));
+
+		xml.node("key", [&] ()
+		{
+			xml.attribute("name", Input::key_name(m.code));
+			xml.attribute("code", Formatted("0x%04x", utf32).string());
+		});
+		append_comment(xml, "\t",
+		               Formatted("%s CTRL-%s", desc[utf32-1], keysym_str).string(),
+		               "");
+
+		return;
+	}
+}
+
+
 void Main::_keycode_xml_printable(Xml_generator &xml, xkb_keycode_t keycode)
 {
 	for (Xkb::Mapping &m : Xkb::printable) {
@@ -659,6 +755,7 @@ int Main::_generate()
 	{
 		{ Map map { *this, xml, Map::Mod::NONE }; }
 		{ Map map { *this, xml, Map::Mod::SHIFT }; }
+		{ Map map { *this, xml, Map::Mod::CONTROL }; }
 		{ Map map { *this, xml, Map::Mod::ALTGR }; }
 		{ Map map { *this, xml, Map::Mod::CAPSLOCK }; }
 		{ Map map { *this, xml, Map::Mod::SHIFT_ALTGR }; }

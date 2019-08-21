@@ -37,47 +37,7 @@ Open issues
 
 :tool:
 
-* map for pseudo mod2: LEFTCTRL RIGHTCTRL
-  * first try xkb_state_key_get_one_sym() with ctrl pressed...
-  * should work regardless of mod1 (which it already does - so don't
-    break it)
-  * map depends on layout, for example, <LCTL>-<AD01> may be
-    CTRL-Q on QWERTY and QWERTZ layout, but
-    CTRL-A on AZERTY
-  * so use the normally generated sym not the keycode...
-    https://www.x.org/releases/current/doc/kbproto/xkbproto.html#Interpreting_the_Control_Modifier
-
-    1     01    SOH (start of heading)      CTRL - A
-    2     02    STX (start of text)         CTRL - B
-    3     03    ETX (end of text)           CTRL - C
-    4     04    EOT (end of transmission)   CTRL - D
-    5     05    ENQ (enquiry)               CTRL - E
-    6     06    ACK (acknowledge)           CTRL - F
-    7     07    BEL '\a' (bell)             CTRL - G
-    8     08    BS  '\b' (backspace)        CTRL - H
-    9     09    HT  '\t' (horizontal tab)   CTRL - I
-    10    0A    LF  '\n' (new line)         CTRL - J
-    11    0B    VT  '\v' (vertical tab)     CTRL - K
-    12    0C    FF  '\f' (form feed)        CTRL - L
-    13    0D    CR  '\r' (carriage ret)     CTRL - M
-    14    0E    SO  (shift out)             CTRL - N
-    15    0F    SI  (shift in)              CTRL - O
-    16    10    DLE (data link escape)      CTRL - P
-    17    11    DC1 (device control 1)      CTRL - Q
-    18    12    DC2 (device control 2)      CTRL - R
-    19    13    DC3 (device control 3)      CTRL - S
-    20    14    DC4 (device control 4)      CTRL - T
-    21    15    NAK (negative ack.)         CTRL - U
-    22    16    SYN (synchronous idle)      CTRL - V
-    23    17    ETB (end of trans. blk)     CTRL - W
-    24    18    CAN (cancel)                CTRL - X
-    25    19    EM  (end of medium)         CTRL - Y
-    26    1A    SUB (substitute)            CTRL - Z
-    27    1B    ESC (escape)                CTRL - [
-    28    1C    FS  (file separator)        CTRL - \  '\\'
-    29    1D    GS  (group separator)       CTRL - ]
-    30    1E    RS  (record separator)      CTRL - ^
-    31    1F    US  (unit separator)        CTRL - _
+* robust error handling on missing locale etc. (Main initialization)
 
 :input_filter:
 
@@ -94,6 +54,9 @@ Open issues
   Swallow the cancelling keysym; that is, no keysym is produced. This
   is the approach taken by libX11.
 
+* test pseudo mod2: LEFTCTRL RIGHTCTRL
+  * should work regardless of mod1 (which it already does - so don't
+    break it)
 * enhance input_filter test for layouts
 * include generated and tested example layouts
   * en_us, de_de, ch_de (sg), ch_fr (sf), fr
@@ -103,9 +66,14 @@ Open issues
   xkb2ifcfg generate ch de          de_CH.UTF-8
   xkb2ifcfg generate ch fr          fr_CH.UTF-8
   xkb2ifcfg generate fr ''          fr_FR.UTF-8
+
   xkb2ifcfg generate us euro        en_US.UTF-8
   xkb2ifcfg generate gb ''          en_GB.UTF-8
+  xkb2ifcfg generate jp 'kana'      ja_JP.UTF-8
 
+
+* Xml_generator: xml.append() as last operation before node closure
+  breaks indentation (see <dummy/>)
 
 
 Generation of keyboard-layout PDFs (and other examples)
