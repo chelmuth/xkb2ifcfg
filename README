@@ -2,34 +2,59 @@
 
   Christian Helmuth
 
-Introduction
-############
 
-* assumption pc105 like German keyboard
-  - with <LSGT> right of <LFSH> (additional 105th key, code 94)
-  - with <BKSL> left of <RTRN> (code 51)
-* no support for latching modifiers
-  * may become handy with accessibility features
-  * input_filter has "sticky" keys already
-* What Windows does
-  https://docs.microsoft.com/en-us/globalization/keyboards/kbdsg.html
+This tool generates Genode input_filter XML configuration files from
+X11 XKB configuration. It must be built and run on Linux with
+libxkbcommon development packages installed.
+
+For pragmatic (and realistic reasons) this tool assumes a standard
+105-keys PC keyboard. This assumption automatically includes US
+keyboards with 104 keys. The differences are:
+
+- PC105 has an additional 105th Less Then / Greater Then key <LSGT>
+  right of Left Shift <LFSH> as additional 105th key
+- PC105 has the Backslash key <BKSL> left of Return <RTRN>
+
+xkb2ifcfg supports Shift, AltGr, and Caps Lock modifiers, as well as
+localized dead-key/compose sequences. The tool does not support
+latched modifiers.
+
+
+Build
+=====
+
+Just execute 'make' and 'xkb2ifcfg' should be built.
 
 
 Usage
 =====
 
-xkb2ifcfg <command> <layout> <variant> <locale>
+! xkb2ifcfg <command> <layout> <variant> <locale>
+!
+! Commands
+!
+!   generate   generate input_filter config
+!   dump       dump raw XKB keymap
+!   info       simple per-key information
+!
+! Examples
+!
+!   xkb2ifcfg generate us ""         en_US.UTF-8 > en_US.chargen
+!   xkb2ifcfg info     de nodeadkeys de_DE.UTF-8 > de_DE.chargen
 
-Commands
+All information is printed on standard output while diagnostic
+messages are written to standard error.
 
-  generate   generate input_filter config
-  dump       dump raw XKB keymap
-  info       simple per-key information
+Valid 'layout' and 'variant' options can be figured out from the
+LAYOUTS section in
 
-Example
+! man 7 xkeyboard-config
 
-  xkb2ifcfg generate us ""         en_US.UTF-8
-  xkb2ifcfg info     de nodeadkeys de_DE.UTF-8
+'variant' strings are depicted in parentheses after the layout (e.g.,
+'us(euro)').
+
+The 'locale' option has the standard locale syntax (see
+/usr/share/i18n/locales).
 
 
 Open issues
@@ -54,6 +79,15 @@ Open issues
   Swallow the cancelling keysym; that is, no keysym is produced. This
   is the approach taken by libX11.
 
+* check mod1=SHIFT mod2=CONTROL mod3=ALTGR mod4=CAPSLOCK
+* check KEY_KP5 must be KEY_UNKNOWN if numlock=off
+* check KEY_DELETE, which is in special.chargen but also generated
+* check de_CH: AltGr-E should produce EURO SYMBOL
+* check de_CH: AltGr-1 should produce brokenbar
+* document <map> <key code=""> unicode codepoint generator
+* deprecate <map> <key...b0="">
+* check for conflicting <key> mapping on Key_map::import_map()
+* qt5: unknown keycodes 26, 27, 41, 43, 39, ...
 * test pseudo mod2: LEFTCTRL RIGHTCTRL
   * should work regardless of mod1 (which it already does - so don't
     break it)
