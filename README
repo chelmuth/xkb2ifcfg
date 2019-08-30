@@ -57,14 +57,6 @@ The 'locale' option has the standard locale syntax (see
 /usr/share/i18n/locales).
 
 
-Open issues
-===========
-
-:tool:
-
-* robust error handling on missing locale etc. (Main initialization)
-
-
 Generation of keyboard-layout PDFs (and other examples)
 =======================================================
 
